@@ -33,6 +33,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include "GAUL_utilitie/var.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,29 +55,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
-volatile uint8_t rfm22_interrupt_flag = 0;      // flag set in the ISR when the RFM22 triggers an interrupt, to be handled in the main loop (to avoid doing too much in the ISR)
-volatile uint8_t pushbutton_interrupt_flag = 0; // flag set in the ISR when a pushbutton is pressed, to be handled in the main loop (to avoid doing too much in the ISR)
-volatile uint8_t pushbutton_pushed[4] = {0};    // array to keep track of which pushbuttons were pressed
-
-// global vars
-uint8_t packet[8] = {1, 2, 3, 4, 5, 6, 7, 8}; // packet to be transmitted, or where the received packet will be stored
-uint8_t rssi = 0;                             // received signal strength indicator
-uint8_t ref_rssi = 0;                         // reference signal strength indicator
-uint32_t freq;                                // frequency
-float latitude = 0;                           // latitude
-float longitude = 0;                          // longitude
-uint8_t spi_rx[1] = {0};                      // array to store the data read from the RFM22 in the ISR, to be handled in the main loop (to avoid doing too much in the ISR)
-
-Pulse_Pin_Typedef pin1;
-Pulse_Pin_Typedef pin2;
-Pulse_Pin_Typedef pin3;
-
-I2C_LCD_HandleTypeDef lcd;
-
-uint8_t channel;
-
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -191,6 +170,8 @@ static void init_global(void){
 
 static void ensure_rx_mode(RFM22 *rfm22)
 {
+  // check if the RFM22 is in RX mode, and if not, set it to RX mode
+  uint8_t spi_rx[1] = {0};    // a revoir.
   RFM22_SPI_read(rfm22, RH_RF22_REG_07_OPERATING_MODE1, spi_rx, 1);
   if (!(spi_rx[0] & RH_RF22_RXON))
   {

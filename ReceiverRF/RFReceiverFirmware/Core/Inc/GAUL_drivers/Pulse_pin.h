@@ -13,7 +13,8 @@
 
 #define MAX_PINS 3
 
-typedef struct {
+typedef struct 
+{
 	int pin_id;
 	GPIO_TypeDef *pin_port;
 	uint16_t pin;
