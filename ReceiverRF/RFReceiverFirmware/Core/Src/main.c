@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
- ******************************************************************************
- * @file           : main.c
- * @brief          : Main program body
- ******************************************************************************
- * @attention
- *
- * Copyright (c) 2025 STMicroelectronics.
- * All rights reserved.
- *
- * This software is licensed under terms that can be found in the LICENSE file
- * in the root directory of this software component.
- * If no LICENSE file comes with this software, it is provided AS-IS.
- *
- ******************************************************************************
- */
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2025 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
 #include "GAUL_drivers/RFM22.h"
 #include "GAUL_drivers/Pulse_pin.h"
 #include "GAUL_drivers/i2c_lcd.h"
@@ -24,11 +24,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "i2c.h"
-#include "spi.h"
-#include "tim.h"
-#include "usart.h"
-#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -51,245 +46,104 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
+SPI_HandleTypeDef hspi1;
+
+TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim5;
+
+UART_HandleTypeDef huart4;
 
 /* USER CODE BEGIN PV */
-
-volatile uint8_t rfm22_interrupt_flag = 0;      // flag set in the ISR when the RFM22 triggers an interrupt, to be handled in the main loop (to avoid doing too much in the ISR)
-volatile uint8_t pushbutton_interrupt_flag = 0; // flag set in the ISR when a pushbutton is pressed, to be handled in the main loop (to avoid doing too much in the ISR)
-volatile uint8_t pushbutton_pushed[4] = {0};    // array to keep track of which pushbuttons were pressed
-
-// global vars
-uint8_t packet[8] = {1, 2, 3, 4, 5, 6, 7, 8}; // packet to be transmitted, or where the received packet will be stored
-uint8_t rssi = 0;                             // received signal strength indicator
-uint8_t ref_rssi = 0;                         // reference signal strength indicator
-uint32_t freq;                                // frequency
-float latitude = 0;                           // latitude
-float longitude = 0;                          // longitude
-uint8_t spi_rx[1] = {0};                      // array to store the data read from the RFM22 in the ISR, to be handled in the main loop (to avoid doing too much in the ISR)
-
-Pulse_Pin_Typedef pin1;
-Pulse_Pin_Typedef pin2;
-Pulse_Pin_Typedef pin3;
-
-I2C_LCD_HandleTypeDef lcd;
-
-uint8_t channel;
-
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_I2C1_Init(void);
+static void MX_SPI1_Init(void);
+static void MX_TIM1_Init(void);
+static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
+static void MX_TIM4_Init(void);
+static void MX_TIM5_Init(void);
+static void MX_UART4_Init(void);
 /* USER CODE BEGIN PFP */
-void PUSH_ISR(uint16_t GPIO_pin); // function to handle pushbutton interrupts, called in the EXTI callback, to be handled in the main loop (to avoid doing too much in the ISR)
-static void process_rfm22_interrupts(RFM22 *rfm22, uint8_t channel);
-static void process_pushbuttons(RFM22 *rfm22, uint8_t *channel);
-static void ensure_rx_mode(RFM22 *rfm22);
+void PUSH_ISR(uint16_t GPIO_pin);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-// EXTI callback, called when an interrupt is triggered on a pin configured as EXTI (in this case, the RFM22 IRQ pin and the pushbuttons pins), to set the respective flags to be handled in the main loop.
+uint8_t rfm22_interrupt_flag = 0;
+uint8_t pushbutton_interrupt_flag = 0;
+uint8_t pushbutton_pushed[4] = {0};
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  if (GPIO_Pin == RFM_IRQ_Pin)
-  {
-    rfm22_interrupt_flag = 1;
-  }
-  if ((GPIO_Pin == GPIO1_Pin) || (GPIO_Pin == GPIO2_Pin) || (GPIO_Pin == GPIO3_Pin) || (GPIO_Pin == GPIO4_Pin))
-  {
-    PUSH_ISR(GPIO_Pin);
-  }
+	if (GPIO_Pin == RFM_IRQ_Pin) rfm22_interrupt_flag = 1;
+	if ((GPIO_Pin == GPIO1_Pin) | (GPIO_Pin == GPIO2_Pin) | (GPIO_Pin == GPIO3_Pin) | (GPIO_Pin == GPIO4_Pin)) PUSH_ISR(GPIO_Pin);
 }
+
 
 void PUSH_ISR(uint16_t GPIO_pin)
 {
-  // set flag and respective button pushed in the array, to be handled in the main loop
-  pushbutton_interrupt_flag = 1;
-  pushbutton_pushed[0] |= (GPIO_pin == GPIO1_Pin);
-  pushbutton_pushed[1] |= (GPIO_pin == GPIO2_Pin);
-  pushbutton_pushed[2] |= (GPIO_pin == GPIO3_Pin);
-  pushbutton_pushed[3] |= (GPIO_pin == GPIO4_Pin);
+	pushbutton_interrupt_flag = 1;
+	pushbutton_pushed[0] |= (GPIO_pin == GPIO1_Pin);
+	pushbutton_pushed[1] |= (GPIO_pin == GPIO2_Pin);
+	pushbutton_pushed[2] |= (GPIO_pin == GPIO3_Pin);
+	pushbutton_pushed[3] |= (GPIO_pin == GPIO4_Pin);
+
 }
 
-// function to create a signal strength bar, to be displayed on the LCD, based on the signal strength percentage (0-100%) and the length of the bar (in characters)
-// the bar is made of '#' characters for the signal strength, and '-' characters for the remaining part of the bar, and is stored in the provided string (which should be pre-allocated with a length of at least 'length' + 1 for the null terminator)
-//  string: pointer to the string where the bar will be stored (length should be at least 'length' + 1 for the null terminator)
-//  length: length of the bar in characters
-//  percent: signal strength percentage (0-100%) in float, where 0% is no signal and 100% is full signal
+
 void signal_strenght_bar(char *string, int length, float percent)
 {
-  // limit percent to 100%
-  if (percent > 100)
-    percent = 100;
-  int nb_square = percent * length / 100;
+	if (percent > 100) percent = 100;
+	int nb_square = percent * length / 100;
+	int nb_dash = length - nb_square;
 
-  for (int i = 0; i < nb_square; i++)
-  {
-    string[i] = '#';
-  }
-  for (int i = nb_square; i < length; i++)
-  {
-    string[i] = '-';
-  }
-  string[length] = '\0'; // null terminator
+	for (int i = 0; i < nb_square; i++)
+	{
+		string[i] = '#';
+	}
+	for (int i = nb_square; i < length; i++)
+	{
+		string[i] = '-';
+	}
 }
 
-// function to print the main menu on the LCD, with the current channel, frequency, RSSI, reference RSSI, GPS coordinates and signal strength bar
+
 void print_menu(RFM22 *dev, I2C_LCD_HandleTypeDef *lcd, uint8_t channel, uint8_t rssi, uint8_t ref_rssi, float latitude, float longitude)
 {
-  char line[21] = {'-'};
-  uint32_t freq = RFM22_get_frequency(dev);
-  uint16_t MHz = freq / 1e6;
-  uint16_t kHz = (freq / 1000) % 1000;
-  uint16_t Hz = freq % 1000;
+	char line[20] = {'-'};
+	uint32_t freq = RFM22_get_frequency(dev);
+	uint16_t MHz = freq /1e6;
+	uint16_t kHz = (freq/1000) % 1000;
+	uint16_t Hz = freq % 1000;
 
-  float signal_strenght = 100 * ((float)rssi - (float)ref_rssi) / ((float)ref_rssi + 1) + 50;
+	float signal_strenght = 100*((float)rssi-(float)ref_rssi)/((float)ref_rssi+1) + 50;
 
-  lcd_clear(lcd);
-  lcd_gotoxy(lcd, 0, 0); // ligne 1               (la fréquence)
-  snprintf(line, sizeof(line), "CH:%-3u   %3lu.%03lu.%03lu", channel, MHz, kHz, Hz);
-  lcd_puts(lcd, line);
-  lcd_gotoxy(lcd, 0, 1); // ligne 2               (RSSI)
-  snprintf(line, sizeof(line), "RSSI:%u", rssi);
-  lcd_puts(lcd, line);
-  lcd_gotoxy(lcd, 0, 2); // ligne 3               (GPS)
-  strcpy(line, "GPS");
-  lcd_puts(lcd, line);
-  lcd_gotoxy(lcd, 0, 3); // ligne 4               (bare du signal)
-  signal_strenght_bar(line, 20, signal_strenght);
-  lcd_puts(lcd, line);
+	lcd_clear(lcd);
+	lcd_gotoxy(lcd, 0, 0); // ligne 1
+	snprintf(line, 21, "CH:%-3u   %3lu.%03lu.%03lu", channel, MHz, kHz, Hz);
+	lcd_puts(lcd, line);
+	lcd_gotoxy(lcd, 0, 1); // ligne 2
+	snprintf(line, 20, "RSSI:%u", rssi);
+	lcd_puts(lcd, line);
+	lcd_gotoxy(lcd, 0, 2); // ligne 3
+	strcpy(line, "GPS");
+	lcd_puts(lcd, line);
+	lcd_gotoxy(lcd, 0, 3); // ligne 4
+	signal_strenght_bar(line, 20, signal_strenght);
+	lcd_puts(lcd, line);
+
 }
-
-
-// =============================================
-
-static void init_pin(void){
-	// init pulsed pins and their respective timers
-	pin1 = PulsePin_init(LED1_GPIO_Port, LED1_Pin, &htim2, TIM_CHANNEL_1);
-	pin2 = PulsePin_init(LED2_GPIO_Port, LED2_Pin, &htim3, TIM_CHANNEL_1);
-	pin3 = PulsePin_init(LED3_GPIO_Port, LED3_Pin, &htim4, TIM_CHANNEL_1);
-}
-
-static void init_lcd(){
-	// init lcd
-	  lcd.hi2c = &hi2c1;
-	  lcd.address = 0x27 << 1;
-	  lcd_init(&lcd);
-	  lcd_clear(&lcd);
-}
-
-static void init_global(void){
-	init_pin();
-	init_lcd();
-  channel = 0;
-}
-
-
-// =============================================
-
-static void ensure_rx_mode(RFM22 *rfm22)
-{
-  RFM22_SPI_read(rfm22, RH_RF22_REG_07_OPERATING_MODE1, spi_rx, 1);
-  if (!(spi_rx[0] & RH_RF22_RXON))
-  {
-    RFM22_rx_mode(rfm22);
-  }
-}
-
-// function to process the RFM22 interrupts, called in the main loop when the RFM22 interrupt flag is set, to handle the interrupts triggered by the RFM22 
-static void process_rfm22_interrupts(RFM22 *rfm22, uint8_t channel)
-{
-  if (!(rfm22_interrupt_flag || (!HAL_GPIO_ReadPin(RFM_IRQ_GPIO_Port, RFM_IRQ_Pin))))
-  {
-    return;
-  }
-
-  rfm22_interrupt_flag = 0;
-  uint8_t interrupts[] = {0, 0};
-  RFM22_SPI_read(rfm22, RH_RF22_REG_03_INTERRUPT_STATUS1, interrupts, 2);
-
-#ifdef TRANSMIT
-  if (interrupts[0] & RH_RF22_IPKSENT)
-  {
-    PulsePin(pin1, 100);
-  }
-  if (interrupts[0] & RH_RF22_ITXFFAFULL)
-  {
-    RFM22_clr_tx_FIFO(rfm22);
-  }
-#endif
-
-#ifdef RECEIVE
-  if (interrupts[0] & RH_RF22_IPKVALID)
-  {
-    PulsePin(pin1, 100);
-    uint8_t length = RFM22_available(rfm22);
-    (void)length;
-
-    // GPS routine
-    rssi = RFM22_get_RSSI(rfm22);
-    RFM22_read_rx(rfm22, packet, 8);
-    latitude = 0;
-    longitude = 0;
-
-    // RSSI routine
-    int16_t rssi_dif = rssi - ref_rssi;
-    freq = 3000 + 200 * rssi_dif;
-    buzzer_start(freq, 200);
-    print_menu(rfm22, &lcd, channel, rssi, ref_rssi, latitude, longitude);
-  }
-
-  if (interrupts[0] & RH_RF22_IRXFFAFULL)
-  {
-    PulsePin(pin3, 100);
-  }
-
-  if (interrupts[1] & RH_RF22_IPREAINVAL)
-  {
-    PulsePin(pin2, 100);
-  }
-#endif
-}
-
-static void process_pushbuttons(RFM22 *rfm22, uint8_t *channel)
-{
-  if (!pushbutton_interrupt_flag)
-  {
-    return;
-  }
-
-  pushbutton_interrupt_flag = 0;
-
-  if (pushbutton_pushed[0])
-  {
-    (*channel)++;
-    RFM22_channel(rfm22, *channel);
-    print_menu(rfm22, &lcd, *channel, rssi, ref_rssi, latitude, longitude);
-  }
-  if (pushbutton_pushed[1])
-  {
-    (*channel)--;
-    RFM22_channel(rfm22, *channel);
-    print_menu(rfm22, &lcd, *channel, rssi, ref_rssi, latitude, longitude);
-  }
-  if (pushbutton_pushed[2])
-  {
-    ref_rssi = rssi;
-  }
-  // if one buton is pushed, it's will be reset here.
-  pushbutton_pushed[0] = 0;
-  pushbutton_pushed[1] = 0;
-  pushbutton_pushed[2] = 0;
-  pushbutton_pushed[3] = 0;
-}
-
-
-
-
-// =============================================
-
 
 /* USER CODE END 0 */
 
@@ -331,50 +185,56 @@ int main(void)
   MX_TIM5_Init();
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
-
-  // --------------------- INITIALISATIONS ---------------------
-
-
-
+  // init pulsed pins and their respective timers
+  Pulse_Pin_Typedef pin1 = PulsePin_init(LED1_GPIO_Port, LED1_Pin, &htim2, TIM_CHANNEL_1);
+  Pulse_Pin_Typedef pin2 = PulsePin_init(LED2_GPIO_Port, LED2_Pin, &htim3, TIM_CHANNEL_1);
+  Pulse_Pin_Typedef pin3 = PulsePin_init(LED3_GPIO_Port, LED3_Pin, &htim4, TIM_CHANNEL_1);
 
   // init buzzer and its watch timer
   buzzer_init(&htim1, TIM_CHANNEL_3, &htim5, TIM_CHANNEL_1);
 
+  // init lcd
+  I2C_LCD_HandleTypeDef lcd;
+  lcd.hi2c = &hi2c1;
+  lcd.address = 0x27<<1;
+  lcd_init(&lcd);
+  lcd_clear(&lcd);
 
-
-  // init rfm22
+  //init rfm22
   RFM22 rfm22 = {
-      .SPIx = &hspi1,
-      .cs_port = RFM_CS_GPIO_Port,
-      .cs_pin = RFM_CS_Pin,
-      .snd_port = RFM_SDN_GPIO_Port,
-      .snd_pin = RFM_SDN_Pin,
-      .nirq_port = RFM_IRQ_GPIO_Port,
-      .nirq_pin = RFM_IRQ_Pin,
-      .gpio_port_1 = RFM_GPIO1_GPIO_Port,
-      .gpio_pin_1 = RFM_GPIO1_Pin,
-      .gpio_port_2 = RFM_GPIO2_GPIO_Port,
-      .gpio_pin_2 = RFM_GPIO2_Pin,
-      .gpio_port_3 = RFM_GPIO3_GPIO_Port,
-      .gpio_pin_3 = RFM_GPIO3_Pin};
+		  .SPIx = &hspi1,
+		  .cs_port = RFM_CS_GPIO_Port,
+		  .cs_pin = RFM_CS_Pin,
+		  .snd_port = RFM_SDN_GPIO_Port,
+		  .snd_pin = RFM_SDN_Pin,
+		  .nirq_port = RFM_IRQ_GPIO_Port,
+		  .nirq_pin = RFM_IRQ_Pin,
+		  .gpio_port_1 = RFM_GPIO1_GPIO_Port,
+		  .gpio_pin_1 = RFM_GPIO1_Pin,
+		  .gpio_port_2 = RFM_GPIO2_GPIO_Port,
+		  .gpio_pin_2 = RFM_GPIO2_Pin,
+		  .gpio_port_3 = RFM_GPIO3_GPIO_Port,
+		  .gpio_pin_3 = RFM_GPIO3_Pin
+  };
 
   RFM22_init(&rfm22, &rfm22_confs);
-  
-  init_global();
-  // --------------------FIN INITIALISATIONS---------------------
-
-  // set initial channel and print menu
-  RFM22_channel(&rfm22, channel);
-  print_menu(&rfm22, &lcd, channel, 0, 0, 0, 0);
-
-#ifdef TRANSMIT
-  uint32_t last_tx_tick = HAL_GetTick(); // get the current tick value to use as a reference for the non-blocking transmit function, to transmit once per second while keeping the loop responsive.
-#endif
-
+  uint8_t channel = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+
+  //global vars
+  RFM22_channel(&rfm22, channel);
+  print_menu(&rfm22, &lcd, 0, 0, 0, 0, 0);
+  uint8_t packet[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+  uint8_t rssi = 0;
+  uint8_t ref_rssi = 0;
+  uint32_t freq;
+  float latitude = 0;
+  float longitude = 0;
+  uint8_t spi_rx[1] = {0};
 
   while (1)
   {
@@ -383,23 +243,119 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 #ifdef TRANSMIT
-    // Non-blocking: transmit once per second while keeping the loop responsive.
-    if ((HAL_GetTick() - last_tx_tick) >= 1000U)
-    {
-      last_tx_tick = HAL_GetTick();
-      RFM22_transmit(&rfm22, packet, 8);
-    }
+	  RFM22_transmit(&rfm22, packet, 8);
+	  uint32_t tick = HAL_GetTick();
+	  while (HAL_GetTick() - tick < 1000);
 #endif
 
 #ifdef RECEIVE
-    // check if the RFM22 is in RX mode, and if not, set it to RX mode
-    ensure_rx_mode(&rfm22);
+	  RFM22_SPI_read(&rfm22, RH_RF22_REG_07_OPERATING_MODE1, spi_rx, 1);
+	  if (!(spi_rx[0] & RH_RF22_RXON))
+	  {
+		  RFM22_rx_mode(&rfm22);
+      }
 #endif
 
-    process_rfm22_interrupts(&rfm22, channel);
+
+	  //handle rfm22 interrupts
+	  if (rfm22_interrupt_flag || (!HAL_GPIO_ReadPin(RFM_IRQ_GPIO_Port, RFM_IRQ_Pin)))
+#ifdef TRANSMIT
+	  {
+		  rfm22_interrupt_flag = 0;
+		  uint8_t interrupts[] = {0, 0};
+		  RFM22_SPI_read(&rfm22, RH_RF22_REG_03_INTERRUPT_STATUS1, interrupts, 2);
+
+		  //pk sent interrupt
+		  if (interrupts[0] & RH_RF22_IPKSENT)
+		  {
+			  PulsePin(pin1, 100);
+		  }
+
+		  //tx FIFO full
+		  if (interrupts[0 & RH_RF22_ITXFFAFULL])
+		  {
+			  RFM22_clr_tx_FIFO(&rfm22);
+		  }
+	  }
+#endif
 
 #ifdef RECEIVE
-    process_pushbuttons(&rfm22, &channel);
+	  {
+		  rfm22_interrupt_flag = 0;
+		  uint8_t interrupts[] = {0, 0};
+		  RFM22_SPI_read(&rfm22, RH_RF22_REG_03_INTERRUPT_STATUS1, interrupts, 2);
+
+
+		  //pk received
+		  if (interrupts[0] & RH_RF22_IPKVALID)
+		  {
+			  PulsePin(pin1, 100);
+			  uint8_t lenght = RFM22_available(&rfm22);
+
+			  // GPS routine
+			  rssi = RFM22_get_RSSI(&rfm22);
+			  RFM22_read_rx(&rfm22, packet, 8);
+			  latitude = 0; // à vérifier, supposé transformer en float direct
+			  longitude = 0;
+
+			  // rssi routine
+			  int16_t rssi_dif = rssi - ref_rssi;
+			  freq = 3000 + 200*rssi_dif;
+			  buzzer_start(freq, 200);
+			  print_menu(&rfm22, &lcd, channel, rssi, ref_rssi, latitude, longitude);
+		  }
+
+		  //rx FIFO full
+		  if (interrupts[0] & RH_RF22_IRXFFAFULL)
+		  {
+			  //read last received
+			  //RFM22_clr_rx_FIFO(&rfm22);
+			  PulsePin(pin3, 100);
+		  }
+
+		  //valid preamble
+		  if (interrupts[1] & RH_RF22_IPREAVAL)
+		  {
+		  }
+
+		  //inval preamble
+		  if (interrupts[1] & RH_RF22_IPREAINVAL)
+		  {
+			  PulsePin(pin2, 100);
+		  }
+	  }
+
+
+	  if (pushbutton_interrupt_flag)
+	  {
+		  pushbutton_interrupt_flag = 0;
+
+		  if (pushbutton_pushed[0]) // channel up
+		  {
+			  channel++;
+			  RFM22_channel(&rfm22, channel);
+			  print_menu(&rfm22, &lcd, channel, rssi, ref_rssi, latitude, longitude);
+		  }
+		  if (pushbutton_pushed[1]) // channel down
+		  {
+			  channel--;
+			  RFM22_channel(&rfm22, channel);
+			  print_menu(&rfm22, &lcd, channel, rssi, ref_rssi, latitude, longitude);
+		  }
+		  if (pushbutton_pushed[2]) // zero
+		  {
+			  ref_rssi = rssi;
+		  }
+		  if (pushbutton_pushed[3])
+		  {
+
+		  }
+
+		  pushbutton_pushed[0] = 0;
+		  pushbutton_pushed[1] = 0;
+		  pushbutton_pushed[2] = 0;
+		  pushbutton_pushed[3] = 0;
+	  }
 #endif
   }
   /* USER CODE END 3 */
@@ -442,6 +398,494 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 900;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC1REF;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+  HAL_TIM_MspPostInit(&htim1);
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 64000;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 65535;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OC_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_ACTIVE;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_OC_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 16000;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 65535;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OC_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_ACTIVE;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_OC_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 16000;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 65535;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OC_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_ACTIVE;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_OC_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+
+}
+
+/**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 64000;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim5.Init.Period = 65535;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_ACTIVE;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_OC_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+
+  /* USER CODE END TIM5_Init 2 */
+
+}
+
+/**
+  * @brief UART4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_UART4_Init(void)
+{
+
+  /* USER CODE BEGIN UART4_Init 0 */
+
+  /* USER CODE END UART4_Init 0 */
+
+  /* USER CODE BEGIN UART4_Init 1 */
+
+  /* USER CODE END UART4_Init 1 */
+  huart4.Instance = UART4;
+  huart4.Init.BaudRate = 115200;
+  huart4.Init.WordLength = UART_WORDLENGTH_8B;
+  huart4.Init.StopBits = UART_STOPBITS_1;
+  huart4.Init.Parity = UART_PARITY_NONE;
+  huart4.Init.Mode = UART_MODE_TX_RX;
+  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart4.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN UART4_Init 2 */
+
+  /* USER CODE END UART4_Init 2 */
+
+}
+
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+/* USER CODE END MX_GPIO_Init_1 */
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, LED1_Pin|LED2_Pin|LED3_Pin|RFM_SDN_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, RFM_CS_Pin|RFM_GPIO3_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, RFM_GPIO2_Pin|RFM_GPIO1_Pin|RFM_GPIO5_Pin|RFM_GPIO4_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : LED1_Pin LED2_Pin LED3_Pin RFM_SDN_Pin */
+  GPIO_InitStruct.Pin = LED1_Pin|LED2_Pin|LED3_Pin|RFM_SDN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : RFM_IRQ_Pin */
+  GPIO_InitStruct.Pin = RFM_IRQ_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(RFM_IRQ_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : RFM_CS_Pin RFM_GPIO3_Pin */
+  GPIO_InitStruct.Pin = RFM_CS_Pin|RFM_GPIO3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : RFM_GPIO2_Pin RFM_GPIO1_Pin RFM_GPIO5_Pin RFM_GPIO4_Pin */
+  GPIO_InitStruct.Pin = RFM_GPIO2_Pin|RFM_GPIO1_Pin|RFM_GPIO5_Pin|RFM_GPIO4_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : GPIO1_Pin GPIO2_Pin GPIO3_Pin GPIO4_Pin */
+  GPIO_InitStruct.Pin = GPIO1_Pin|GPIO2_Pin|GPIO3_Pin|GPIO4_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : MLX_INT_TRIG_Pin MLX_INT_Pin */
+  GPIO_InitStruct.Pin = MLX_INT_TRIG_Pin|MLX_INT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+/* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
