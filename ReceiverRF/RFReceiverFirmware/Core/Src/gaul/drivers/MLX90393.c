@@ -3,8 +3,7 @@
  */
 
 
-#include "GAUL_drivers/MLX90393.h"
-
+#include "gaul/drivers/MLX90393.h"
 
 HAL_StatusTypeDef I2C_MLX90393_Init(I2C_MLX90393_HandleTypeDef *hi2cd) {
   HAL_StatusTypeDef res;

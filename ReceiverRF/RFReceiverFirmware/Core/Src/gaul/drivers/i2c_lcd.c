@@ -3,8 +3,7 @@
  * Object-oriented version with multiple LCD support
  */
 
-#include "GAUL_drivers/i2c_lcd.h"
-
+#include "gaul/drivers/i2c_lcd.h"
 /**
  * @brief  Sends a command to the LCD.
  * @param  lcd: Pointer to the LCD handle

@@ -46,93 +46,93 @@
 /* Memory map ----------------------------------------------------------------*/
 // Retrieve a value using (mem[ADDR] >> OFST) & ((1U << LEN) - 1)
 
-#define MLX90393_MEM_OFST_Z_SERIES 0x7
-#define MLX90393_MEM_ADDR_Z_SERIES 0x0
-#define MLX90393_MEM_LEN_Z_SERIES  0x1
+#define MLX90393_MEM_OFST_Z_SERIES 0x7        /** Offset for Z series register */
+#define MLX90393_MEM_ADDR_Z_SERIES 0x0        /** Address for Z series register */
+#define MLX90393_MEM_LEN_Z_SERIES  0x1        /** Length in bits for Z series register */
 
-#define MLX90393_MEM_OFST_GAIN_SEL 0x4
-#define MLX90393_MEM_ADDR_GAIN_SEL 0x0
-#define MLX90393_MEM_LEN_GAIN_SEL  0x3
+#define MLX90393_MEM_OFST_GAIN_SEL 0x4        /** Offset for gain selection register */
+#define MLX90393_MEM_ADDR_GAIN_SEL 0x0        /** Address for gain selection register */
+#define MLX90393_MEM_LEN_GAIN_SEL  0x3        /** Length in bits for gain selection register */
 
-#define MLX90393_MEM_OFST_HALLCONF 0x0
-#define MLX90393_MEM_ADDR_HALLCONF 0x0
-#define MLX90393_MEM_LEN_HALLCONF  0x4
+#define MLX90393_MEM_OFST_HALLCONF 0x0        /** Offset for hall configuration register */
+#define MLX90393_MEM_ADDR_HALLCONF 0x0        /** Address for hall configuration register */
+#define MLX90393_MEM_LEN_HALLCONF  0x4        /** Length in bits for hall configuration register */
 
-#define MLX90393_MEM_OFST_TRIG_INT_SEL 0xF
-#define MLX90393_MEM_ADDR_TRIG_INT_SEL 0x1
-#define MLX90393_MEM_LEN_TRIG_INT_SEL  0x1
+#define MLX90393_MEM_OFST_TRIG_INT_SEL 0xF    /** Offset for trigger interrupt selection register */
+#define MLX90393_MEM_ADDR_TRIG_INT_SEL 0x1    /** Address for trigger interrupt selection register */
+#define MLX90393_MEM_LEN_TRIG_INT_SEL  0x1    /** Length in bits for trigger interrupt selection register */
 
-#define MLX90393_MEM_OFST_COMM_MODE 0xD
-#define MLX90393_MEM_ADDR_COMM_MODE 0x1
-#define MLX90393_MEM_LEN_COMM_MODE  0x2
+#define MLX90393_MEM_OFST_COMM_MODE 0xD     /** Offset for communication mode register */
+#define MLX90393_MEM_ADDR_COMM_MODE 0x1     /** Address for communication mode register */
+#define MLX90393_MEM_LEN_COMM_MODE  0x2     /** Length in bits for communication mode register */
 
-#define MLX90393_MEM_OFST_WOC_DIFF 0xC
-#define MLX90393_MEM_ADDR_WOC_DIFF 0x1
-#define MLX90393_MEM_LEN_WOC_DIFF  0x1
+#define MLX90393_MEM_OFST_WOC_DIFF 0xC     /** Offset for wake-on-change difference register */
+#define MLX90393_MEM_ADDR_WOC_DIFF 0x1     /** Address for wake-on-change difference register */
+#define MLX90393_MEM_LEN_WOC_DIFF  0x1     /** Length in bits for wake-on-change difference register */
 
-#define MLX90393_MEM_OFST_EXT_TRIG 0xB
-#define MLX90393_MEM_ADDR_EXT_TRIG 0x1
-#define MLX90393_MEM_LEN_EXT_TRIG  0x1
+#define MLX90393_MEM_OFST_EXT_TRIG 0xB     /** Offset for external trigger register */
+#define MLX90393_MEM_ADDR_EXT_TRIG 0x1     /** Address for external trigger register */
+#define MLX90393_MEM_LEN_EXT_TRIG  0x1     /** Length in bits for external trigger register */
 
-#define MLX90393_MEM_OFST_TCMP_EN 0xA
-#define MLX90393_MEM_ADDR_TCMP_EN 0x1
-#define MLX90393_MEM_LEN_TCMP_EN  0x1
+#define MLX90393_MEM_OFST_TCMP_EN 0xA     /** Offset for temperature compensation enable register */
+#define MLX90393_MEM_ADDR_TCMP_EN 0x1     /** Address for temperature compensation enable register */
+#define MLX90393_MEM_LEN_TCMP_EN  0x1     /** Length in bits for temperature compensation enable register */
 
-#define MLX90393_MEM_OFST_BURST_SEL 0x6
-#define MLX90393_MEM_ADDR_BURST_SEL 0x1
-#define MLX90393_MEM_LEN_BURST_SEL  0x4
+#define MLX90393_MEM_OFST_BURST_SEL 0x6     /** Offset for burst selection register */
+#define MLX90393_MEM_ADDR_BURST_SEL 0x1     /** Address for burst selection register */
+#define MLX90393_MEM_LEN_BURST_SEL  0x4     /** Length in bits for burst selection register */
 
-#define MLX90393_MEM_OFST_BURST_DATA_RATE 0x0
-#define MLX90393_MEM_ADDR_BURST_DATA_RATE 0x1
-#define MLX90393_MEM_LEN_BURST_DATA_RATE  0x6
+#define MLX90393_MEM_OFST_BURST_DATA_RATE 0x0     /** Offset for burst data rate register */
+#define MLX90393_MEM_ADDR_BURST_DATA_RATE 0x1     /** Address for burst data rate register */
+#define MLX90393_MEM_LEN_BURST_DATA_RATE  0x6     /** Length in bits for burst data rate register */
 
-#define MLX90393_MEM_OFST_OSR2 0xB
-#define MLX90393_MEM_ADDR_OSR2 0x2
-#define MLX90393_MEM_LEN_OSR2  0x2
+#define MLX90393_MEM_OFST_OSR2 0xB      /** Offset for OSR2 register */
+#define MLX90393_MEM_ADDR_OSR2 0x2      /** Address for OSR2 register */
+#define MLX90393_MEM_LEN_OSR2  0x2      /** Length in bits for OSR2 register */
 
-#define MLX90393_MEM_OFST_RES_XYZ 0x5
-#define MLX90393_MEM_ADDR_RES_XYZ 0x2
-#define MLX90393_MEM_LEN_RES_XYZ  0x6
+#define MLX90393_MEM_OFST_RES_XYZ 0x5   /** Offset for resolution XYZ register */
+#define MLX90393_MEM_ADDR_RES_XYZ 0x2   /** Address for resolution XYZ register */
+#define MLX90393_MEM_LEN_RES_XYZ  0x6   /** Length in bits for resolution XYZ register */
 
-#define MLX90393_MEM_OFST_DIG_FILT 0x2
-#define MLX90393_MEM_ADDR_DIG_FILT 0x2
-#define MLX90393_MEM_LEN_DIG_FILT  0x3
+#define MLX90393_MEM_OFST_DIG_FILT 0x2  /** Offset for digital filter register */
+#define MLX90393_MEM_ADDR_DIG_FILT 0x2  /** Address for digital filter register */
+#define MLX90393_MEM_LEN_DIG_FILT  0x3  /** Length in bits for digital filter register */
 
-#define MLX90393_MEM_OFST_OSR 0x0
-#define MLX90393_MEM_ADDR_OSR 0x2
-#define MLX90393_MEM_LEN_OSR  0x2
+#define MLX90393_MEM_OFST_OSR 0x0      /** Offset for OSR register */
+#define MLX90393_MEM_ADDR_OSR 0x2      /** Address for OSR register */
+#define MLX90393_MEM_LEN_OSR  0x2      /** Length in bits for OSR register */
 
-#define MLX90393_MEM_OFST_SENS_TC_HT 0x8
-#define MLX90393_MEM_ADDR_SENS_TC_HT 0x3
-#define MLX90393_MEM_LEN_SENS_TC_HT  0x8
+#define MLX90393_MEM_OFST_SENS_TC_HT 0x8      /** Offset for temperature compensation high threshold register */
+#define MLX90393_MEM_ADDR_SENS_TC_HT 0x3      /** Address for temperature compensation high threshold register */
+#define MLX90393_MEM_LEN_SENS_TC_HT  0x8      /** Length in bits for temperature compensation high threshold register */
 
-#define MLX90393_MEM_OFST_SENS_TC_LT 0x0
-#define MLX90393_MEM_ADDR_SENS_TC_LT 0x3
-#define MLX90393_MEM_LEN_SENS_TC_LT  0x8
+#define MLX90393_MEM_OFST_SENS_TC_LT 0x0      /** Offset for temperature compensation low threshold register */
+#define MLX90393_MEM_ADDR_SENS_TC_LT 0x3      /** Address for temperature compensation low threshold register */
+#define MLX90393_MEM_LEN_SENS_TC_LT  0x8      /** Length in bits for temperature compensation low threshold register */
 
-#define MLX90393_MEM_OFST_OFFSET_X 0x0
-#define MLX90393_MEM_ADDR_OFFSET_X 0x4
-#define MLX90393_MEM_LEN_OFFSET_X  0xF
+#define MLX90393_MEM_OFST_OFFSET_X 0x0      /** Offset for X-axis offset register */
+#define MLX90393_MEM_ADDR_OFFSET_X 0x4      /** Address for X-axis offset register */
+#define MLX90393_MEM_LEN_OFFSET_X  0xF      /** Length in bits for X-axis offset register */
 
-#define MLX90393_MEM_OFST_OFFSET_Y 0x0
-#define MLX90393_MEM_ADDR_OFFSET_Y 0x5
-#define MLX90393_MEM_LEN_OFFSET_Y  0xF
+#define MLX90393_MEM_OFST_OFFSET_Y 0x0      /** Offset for Y-axis offset register */
+#define MLX90393_MEM_ADDR_OFFSET_Y 0x5      /** Address for Y-axis offset register */
+#define MLX90393_MEM_LEN_OFFSET_Y  0xF      /** Length in bits for Y-axis offset register */
 
-#define MLX90393_MEM_OFST_OFFSET_Z 0x0
-#define MLX90393_MEM_ADDR_OFFSET_Z 0x6
-#define MLX90393_MEM_LEN_OFFSET_Z  0xF
+#define MLX90393_MEM_OFST_OFFSET_Z 0x0      /** Offset for Z-axis offset register */
+#define MLX90393_MEM_ADDR_OFFSET_Z 0x6      /** Address for Z-axis offset register */
+#define MLX90393_MEM_LEN_OFFSET_Z  0xF      /** Length in bits for Z-axis offset register */
 
-#define MLX90393_MEM_OFST_WOXY_THRESHOLD 0x0
-#define MLX90393_MEM_ADDR_WOXY_THRESHOLD 0x6
-#define MLX90393_MEM_LEN_WOXY_THRESHOLD  0xF
+#define MLX90393_MEM_OFST_WOXY_THRESHOLD 0x0    /** Offset for wake-on-change X/Y threshold register */
+#define MLX90393_MEM_ADDR_WOXY_THRESHOLD 0x6    /** Address for wake-on-change X/Y threshold register */
+#define MLX90393_MEM_LEN_WOXY_THRESHOLD  0xF    /** Length in bits for wake-on-change X/Y threshold register */
 
-#define MLX90393_MEM_OFST_WOZ_THRESHOLD 0x0
-#define MLX90393_MEM_ADDR_WOZ_THRESHOLD 0x6
-#define MLX90393_MEM_LEN_WOZ_THRESHOLD  0xF
+#define MLX90393_MEM_OFST_WOZ_THRESHOLD 0x0    /** Offset for wake-on-change Z threshold register */
+#define MLX90393_MEM_ADDR_WOZ_THRESHOLD 0x6    /** Address for wake-on-change Z threshold register */
+#define MLX90393_MEM_LEN_WOZ_THRESHOLD  0xF    /** Length in bits for wake-on-change Z threshold register */
 
-#define MLX90393_MEM_OFST_WOT_THRESHOLD 0x0
-#define MLX90393_MEM_ADDR_WOT_THRESHOLD 0x6
-#define MLX90393_MEM_LEN_WOT_THRESHOLD  0xF
+#define MLX90393_MEM_OFST_WOT_THRESHOLD 0x0    /** Offset for wake-on-change temperature threshold register */
+#define MLX90393_MEM_ADDR_WOT_THRESHOLD 0x6    /** Address for wake-on-change temperature threshold register */
+#define MLX90393_MEM_LEN_WOT_THRESHOLD  0xF    /** Length in bits for wake-on-change temperature threshold register */
 
 // ... The remaining registers until register 31 is free memory
 

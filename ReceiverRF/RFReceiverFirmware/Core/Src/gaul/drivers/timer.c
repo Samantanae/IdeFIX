@@ -4,7 +4,7 @@
  *  Created on: Jul 29, 2025
  *      Author: victo
  */
-#include "GAUL_drivers/timer.h"
+#include "gaul/drivers/timer.h"
 
 // An unordered list of the callback mappings
 static TIM_Callback_Mapping callback_map_list[MAX_OC_CHANNELS*MAX_OC_TIMERS];

@@ -18,13 +18,16 @@
  * @brief Structure to hold LCD instance information
  */
 typedef struct {
-    I2C_HandleTypeDef *hi2c;     // I2C handler for communication
-    uint8_t address;            // I2C address of the LCD
+    I2C_HandleTypeDef *hi2c;     /** Pointer to the I2C handle used for communication with the LCD */
+    uint8_t address;            /** I2C address of the LCD */
 } I2C_LCD_HandleTypeDef;
 
 /**
  * @brief Initializes the LCD.
  * @param lcd: Pointer to the LCD handle
+ * 
+ * @note Must be called before using any other LCD functions to ensure proper initialization of the LCD. 
+ * @note It sets up the LCD for 4-bit mode and configures the display settings.
  */
 void lcd_init(I2C_LCD_HandleTypeDef *lcd);
 
@@ -32,6 +35,8 @@ void lcd_init(I2C_LCD_HandleTypeDef *lcd);
  * @brief Sends a command to the LCD.
  * @param lcd: Pointer to the LCD handle
  * @param cmd: Command byte to send
+ * 
+ * @note Send control commands to the LCD, such as clearing the display, setting the cursor position, etc.
  */
 void lcd_send_cmd(I2C_LCD_HandleTypeDef *lcd, char cmd);
 
@@ -39,6 +44,8 @@ void lcd_send_cmd(I2C_LCD_HandleTypeDef *lcd, char cmd);
  * @brief Sends data (character) to the LCD.
  * @param lcd: Pointer to the LCD handle
  * @param data: Data byte to send
+ * 
+ * @note Puts the data byte at the current cursor position.
  */
 void lcd_send_data(I2C_LCD_HandleTypeDef *lcd, char data);
 

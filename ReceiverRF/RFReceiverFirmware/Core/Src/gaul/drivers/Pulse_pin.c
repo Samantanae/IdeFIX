@@ -4,7 +4,7 @@
  *  Created on: May 15, 2025
  *      Author: victo
  */
-#include "GAUL_drivers/Pulse_pin.h"
+#include "gaul/drivers/Pulse_pin.h"
 
 static Pulse_Pin_Typedef pin_list[MAX_PINS];
 static int nb_pins = 0;

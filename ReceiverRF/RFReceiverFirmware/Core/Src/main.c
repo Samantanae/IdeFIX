@@ -15,12 +15,6 @@
  *
  ******************************************************************************
  */
-#include "GAUL_drivers/RFM22.h"
-#include "GAUL_drivers/Pulse_pin.h"
-#include "GAUL_drivers/i2c_lcd.h"
-#include "GAUL_drivers/buzzer.h"
-#include "stdio.h"
-#include <string.h>
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -33,8 +27,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include "GAUL_utilitie/var.h"
-#include "GAUL_utilitie/gestion_lcd.h"
+#include "app/app.h"
 
 /* USER CODE END Includes */
 
@@ -61,169 +54,16 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-void PUSH_ISR(uint16_t GPIO_pin); // function to handle pushbutton interrupts, called in the EXTI callback, to be handled in the main loop.
-static void process_rfm22_interrupts(RFM22 *rfm22, uint8_t channel);
-static void process_pushbuttons(RFM22 *rfm22, uint8_t *channel);
-static void ensure_rx_mode(RFM22 *rfm22);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-// EXTI callback, called when an interrupt is triggered on a pin configured as EXTI (in this case, the RFM22 IRQ pin and the pushbuttons pins), to set the respective flags to be handled in the main loop.
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  if (GPIO_Pin == RFM_IRQ_Pin)
-  {
-    rfm22_interrupt_flag = 1;
-  }
-  if ((GPIO_Pin == GPIO1_Pin) || (GPIO_Pin == GPIO2_Pin) || (GPIO_Pin == GPIO3_Pin) || (GPIO_Pin == GPIO4_Pin))
-  {
-    PUSH_ISR(GPIO_Pin);
-  }
+  App_OnExti(GPIO_Pin);
 }
-
-void PUSH_ISR(uint16_t GPIO_pin)
-{
-  // set flag and respective button pushed in the array, to be handled in the main loop
-  pushbutton_interrupt_flag = 1;
-  pushbutton_pushed[0] |= (GPIO_pin == GPIO1_Pin);
-  pushbutton_pushed[1] |= (GPIO_pin == GPIO2_Pin);
-  pushbutton_pushed[2] |= (GPIO_pin == GPIO3_Pin);
-  pushbutton_pushed[3] |= (GPIO_pin == GPIO4_Pin);
-}
-
-
-
-
-// =============================================
-
-static void init_pin(void){
-	// init pulsed pins and their respective timers
-	pin1 = PulsePin_init(LED1_GPIO_Port, LED1_Pin, &htim2, TIM_CHANNEL_1);
-	pin2 = PulsePin_init(LED2_GPIO_Port, LED2_Pin, &htim3, TIM_CHANNEL_1);
-	pin3 = PulsePin_init(LED3_GPIO_Port, LED3_Pin, &htim4, TIM_CHANNEL_1);
-}
-
-static void init_lcd(){
-	// init lcd
-	  lcd.hi2c = &hi2c1;
-	  lcd.address = 0x27 << 1;
-	  lcd_init(&lcd);
-	  lcd_clear(&lcd);
-}
-
-static void init_global(void){
-	init_pin();
-	init_lcd();
-  channel = 0;
-}
-
-
-// =============================================
-
-static void ensure_rx_mode(RFM22 *rfm22)
-{
-  // check if the RFM22 is in RX mode, and if not, set it to RX mode
-  uint8_t spi_rx[1] = {0};    // a revoir.
-  RFM22_SPI_read(rfm22, RH_RF22_REG_07_OPERATING_MODE1, spi_rx, 1);
-  if (!(spi_rx[0] & RH_RF22_RXON))
-  {
-    RFM22_rx_mode(rfm22);
-  }
-}
-
-// function to process the RFM22 interrupts, called in the main loop when the RFM22 interrupt flag is set, to handle the interrupts triggered by the RFM22 
-static void process_rfm22_interrupts(RFM22 *rfm22, uint8_t channel)
-{
-  if (!(rfm22_interrupt_flag || (!HAL_GPIO_ReadPin(RFM_IRQ_GPIO_Port, RFM_IRQ_Pin))))
-  {
-    return;
-  }
-
-  rfm22_interrupt_flag = 0;
-  uint8_t interrupts[] = {0, 0};
-  RFM22_SPI_read(rfm22, RH_RF22_REG_03_INTERRUPT_STATUS1, interrupts, 2);
-
-#ifdef TRANSMIT
-  if (interrupts[0] & RH_RF22_IPKSENT)
-  {
-    PulsePin(pin1, 100);
-  }
-  if (interrupts[0] & RH_RF22_ITXFFAFULL)
-  {
-    RFM22_clr_tx_FIFO(rfm22);
-  }
-#endif
-
-#ifdef RECEIVE
-  if (interrupts[0] & RH_RF22_IPKVALID)
-  {
-    PulsePin(pin1, 100);
-    uint8_t length = RFM22_available(rfm22);
-    (void)length;
-
-    // GPS routine
-    rssi = RFM22_get_RSSI(rfm22);
-    RFM22_read_rx(rfm22, packet, 8);
-    latitude = 0;
-    longitude = 0;
-
-    // RSSI routine
-    int16_t rssi_dif = rssi - ref_rssi;
-    freq = 3000 + 200 * rssi_dif;
-    buzzer_start(freq, 200);
-    print_menu(rfm22, &lcd, channel, rssi, ref_rssi, latitude, longitude);
-  }
-
-  if (interrupts[0] & RH_RF22_IRXFFAFULL)
-  {
-    PulsePin(pin3, 100);
-  }
-
-  if (interrupts[1] & RH_RF22_IPREAINVAL)
-  {
-    PulsePin(pin2, 100);
-  }
-#endif
-}
-
-static void process_pushbuttons(RFM22 *rfm22, uint8_t *channel)
-{
-  if (!pushbutton_interrupt_flag)
-  {
-    return;
-  }
-
-  pushbutton_interrupt_flag = 0;
-
-  if (pushbutton_pushed[0])
-  {
-    (*channel)++;
-    RFM22_channel(rfm22, *channel);
-    print_menu(rfm22, &lcd, *channel, rssi, ref_rssi, latitude, longitude);
-  }
-  if (pushbutton_pushed[1])
-  {
-    (*channel)--;
-    RFM22_channel(rfm22, *channel);
-    print_menu(rfm22, &lcd, *channel, rssi, ref_rssi, latitude, longitude);
-  }
-  if (pushbutton_pushed[2])
-  {
-    ref_rssi = rssi;
-  }
-  // if one buton is pushed, it's will be reset here, after have been treated.
-  pushbutton_pushed[0] = 0;
-  pushbutton_pushed[1] = 0;
-  pushbutton_pushed[2] = 0;
-  pushbutton_pushed[3] = 0;
-}
-
-
-
-
-// =============================================
 
 
 /* USER CODE END 0 */
@@ -267,44 +107,7 @@ int main(void)
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
 
-  // --------------------- INITIALISATIONS ---------------------
-
-
-
-
-  // init buzzer and its watch timer
-  buzzer_init(&htim1, TIM_CHANNEL_3, &htim5, TIM_CHANNEL_1);
-
-
-
-  // init rfm22
-  RFM22 rfm22 = {
-      .SPIx = &hspi1,
-      .cs_port = RFM_CS_GPIO_Port,
-      .cs_pin = RFM_CS_Pin,
-      .snd_port = RFM_SDN_GPIO_Port,
-      .snd_pin = RFM_SDN_Pin,
-      .nirq_port = RFM_IRQ_GPIO_Port,
-      .nirq_pin = RFM_IRQ_Pin,
-      .gpio_port_1 = RFM_GPIO1_GPIO_Port,
-      .gpio_pin_1 = RFM_GPIO1_Pin,
-      .gpio_port_2 = RFM_GPIO2_GPIO_Port,
-      .gpio_pin_2 = RFM_GPIO2_Pin,
-      .gpio_port_3 = RFM_GPIO3_GPIO_Port,
-      .gpio_pin_3 = RFM_GPIO3_Pin};
-
-  RFM22_init(&rfm22, &rfm22_confs);
-  
-  init_global();
-  // --------------------FIN INITIALISATIONS---------------------
-
-  // set initial channel and print menu
-  RFM22_channel(&rfm22, channel);
-  print_menu(&rfm22, &lcd, channel, 0, 0, 0, 0);
-
-#ifdef TRANSMIT
-  uint32_t last_tx_tick = HAL_GetTick(); // get the current tick value to use as a reference for the non-blocking transmit function, to transmit once per second while keeping the loop responsive.
-#endif
+  App_Init();
 
   /* USER CODE END 2 */
 
@@ -317,25 +120,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-#ifdef TRANSMIT
-    // Non-blocking: transmit once per second while keeping the loop responsive.
-    if ((HAL_GetTick() - last_tx_tick) >= 1000U)
-    {
-      last_tx_tick = HAL_GetTick();
-      RFM22_transmit(&rfm22, packet, 8);
-    }
-#endif
-
-#ifdef RECEIVE
-    // check if the RFM22 is in RX mode, and if not, set it to RX mode
-    ensure_rx_mode(&rfm22);
-#endif
-
-    process_rfm22_interrupts(&rfm22, channel);
-
-#ifdef RECEIVE
-    process_pushbuttons(&rfm22, &channel);
-#endif
+    App_Run();
   }
   /* USER CODE END 3 */
 }

@@ -5,7 +5,7 @@
  *      Author: victo
  */
 
-#include "Gaul_drivers/RFM22.h"
+#include "gaul/drivers/RFM22.h"
 #include <math.h>
 
 // config GFSK, 2.4kbs, 20kHz freq dev, 50kHz channel step, CRC off, no header, carrier @ 433MHz
