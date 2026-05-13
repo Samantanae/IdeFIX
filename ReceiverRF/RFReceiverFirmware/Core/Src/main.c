@@ -228,7 +228,7 @@ int main(void)
   //global vars
   RFM22_channel(&rfm22, channel);
   print_menu(&rfm22, &lcd, 0, 0, 0, 0, 0);
-  uint8_t packet[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+  uint8_t packet[8] = { 86, 69, 50, 86, 81, 87}; // trensmision de {'V', 'E', '2', 'V', 'Q', 'W'}
   uint8_t rssi = 0;
   uint8_t ref_rssi = 0;
   uint32_t freq;
