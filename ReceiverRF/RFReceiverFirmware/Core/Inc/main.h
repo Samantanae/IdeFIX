@@ -100,7 +100,11 @@ void Error_Handler(void);
 #define MLX_INT_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
-#define RECEIVE // TRANSMIT or RECEIVE
+#define RECEIVE // TRANSMIT or RECEIVE				METTRE CETTE LIGNE EN COMMENTAIRE POUR PASSER EN MODE TRANSMIT et inversement pour le mettre en mode RECEIVE
+
+#ifndef RECEIVE
+#define TRANSMIT // TRANSMIT
+#endif //RECEIVE
 
 /* USER CODE END Private defines */
 
