@@ -25,6 +25,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "i2c.h"
 #include "spi.h"
 #include "tim.h"
@@ -35,9 +36,8 @@
 /* USER CODE BEGIN Includes */
 #ifdef RECEIVE
 #include "GAUL_drivers/I2C_Slave.h"
-#endif
-#ifdef TRANSMIT
-
+#else
+#include "GAUL_drivers/i2c_master.h"
 #endif
 /* USER CODE END Includes */
 
@@ -59,6 +59,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+#ifdef TRANSMIT
+	uint8_t TxData[13]= {0x1, 0x2, 0x3, 0x4, 0x5, 0x6,0x7,0x8};
+#endif
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,6 +77,13 @@ uint8_t rfm22_interrupt_flag = 0;
 uint8_t pushbutton_interrupt_flag = 0;
 uint8_t pushbutton_pushed[4] = { 0 };
 
+uint8_t statue_data_i2c = 0;	/**statue des donnée i2c. 0=chargement. A METTRE À 1 POUR DIRE READY.*/
+/** statue du trensfert.
+ * 0=aucun trensfer.
+ * 1=en cours.
+ * 2=ARRÊT. */
+uint8_t statue_i2c = 2;
+float tempon_i2c[3];
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == RFM_IRQ_Pin)
@@ -91,6 +101,7 @@ void PUSH_ISR(uint16_t GPIO_pin) {
 	pushbutton_pushed[3] |= (GPIO_pin == GPIO4_Pin);
 
 }
+
 
 void signal_strenght_bar(char *string, int length, float percent) {
 	if (percent > 100)
@@ -136,47 +147,46 @@ void print_menu(RFM22 *dev, I2C_LCD_HandleTypeDef *lcd, uint8_t channel,
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
-int main(void) {
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
 
-	/* USER CODE BEGIN 1 */
+  /* USER CODE BEGIN 1 */
 
-	/* USER CODE END 1 */
+  /* USER CODE END 1 */
 
-	/* MCU Configuration--------------------------------------------------------*/
+  /* MCU Configuration--------------------------------------------------------*/
 
-	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-	HAL_Init();
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
 
-	/* USER CODE BEGIN Init */
+  /* USER CODE BEGIN Init */
 
-	/* USER CODE END Init */
+  /* USER CODE END Init */
 
-	/* Configure the system clock */
-	SystemClock_Config();
+  /* Configure the system clock */
+  SystemClock_Config();
 
-	/* USER CODE BEGIN SysInit */
+  /* USER CODE BEGIN SysInit */
 
-	/* USER CODE END SysInit */
+  /* USER CODE END SysInit */
 
-	/* Initialize all configured peripherals */
-	MX_GPIO_Init();
-	MX_I2C1_Init();
-	MX_SPI1_Init();
-	MX_TIM1_Init();
-	MX_TIM2_Init();
-	MX_TIM3_Init();
-	MX_TIM4_Init();
-	MX_TIM5_Init();
-	MX_UART4_Init();
-	/* USER CODE BEGIN 2 */
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_I2C1_Init();
+  MX_SPI1_Init();
+  MX_TIM1_Init();
+  MX_TIM2_Init();
+  MX_TIM3_Init();
+  MX_TIM4_Init();
+  MX_TIM5_Init();
+  MX_UART4_Init();
+  /* USER CODE BEGIN 2 */
 // ------------ GESTION I2C (INITIALISATION MASTER-SLAVE)--------------
-#ifdef TRANSMIT
-	uint16_t slaveADDR = 0x11<<1;
-	uint8_t TxData[8]= {0x1, 0x2, 0x3, 0x4, 0x5, 0x6,0x7,0x8};
-#endif
+
 
 	// init pulsed pins and their respective timers
 	Pulse_Pin_Typedef pin1 = PulsePin_init(LED1_GPIO_Port, LED1_Pin, &htim2,
@@ -211,13 +221,12 @@ int main(void) {
 	HAL_I2C_EnableListen_IT(&hi2c1);
 #endif
 #ifdef TRANSMIT
-  uint16_t slaveADDR = 0x14<<1;//TODO! WARNING. AVANT L'ESSAIS, 2 PROJET DIFF DOIS ÊTRE CRÉER, CAR L'ID DE L'STM32 EST VIA MX.
   uint8_t TxData[6] = {0x1, 0x2, 0x3, 0x4, 0x5, 0x6};
 #endif
-	/* USER CODE END 2 */
+  /* USER CODE END 2 */
 
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
 
 	//global vars
 	RFM22_channel(&rfm22, channel);
@@ -232,18 +241,25 @@ int main(void) {
 	float longitude = 0;
 	uint8_t spi_rx[1] = { 0 };
 
-	while (1) {
-		/* USER CODE END WHILE */
+	/*uniquement après que tout soit initialisé que le trensfer peux commencer*/
+	statue_i2c = 0;
 
-		/* USER CODE BEGIN 3 */
+	while (1) {
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
 		//------------------- GESTION I2C --------------------------
 #ifdef TRANSMIT
 	  // exemple de transmit (requesting to write 2 bytes stored in the TxData buffer to the slave.
 	  // the data while be stored ate the 7 register adr. 1 is the size of register address and 2 is the number of bytes to send.
 	  // TODO: make it non bloquant.
-	  HAL_I2C_Mem_Write(&hi2c1, I2C_ADRESS_SLAVE1, 7, 1, TxData, 2, 1000);  // write 2 bytes starting from register 7
-	  RFM22_transmit(&rfm22, packet, 8);
+	  if(statue_i2c==0 && statue_data_i2c==1){
+		  HAL_I2C_Master_Transmit_DMA(&hi2c1,I2C_ADRESS_SLAVE1 , &I2C_GPS.I2C_REGISTER, 12);
+	  }
+		HAL_I2C_Mem_Write(&hi2c1, I2C_ADRESS_SLAVE1, 7, 1, TxData, 2, 1000);  // write 2 bytes starting from register 7
 	  //----------------- FIN GESTION I2C -------------------------
+	  RFM22_transmit(&rfm22, packet, 8);
+
 	  uint32_t tick = HAL_GetTick();
 	  while (HAL_GetTick() - tick < 1000);
 #endif
@@ -353,59 +369,67 @@ int main(void) {
 		}
 #endif
 	}
-	/* USER CODE END 3 */
+  /* USER CODE END 3 */
 }
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
-void SystemClock_Config(void) {
-	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
-	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-	/** Initializes the RCC Oscillators according to the specified parameters
-	 * in the RCC_OscInitTypeDef structure.
-	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-	RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
-	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-	RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
-	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
-		Error_Handler();
-	}
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
-	/** Initializes the CPU, AHB and APB buses clocks
-	 */
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
-		Error_Handler();
-	}
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /* USER CODE BEGIN 4 */
 
+
+
+
 /* USER CODE END 4 */
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
-void Error_Handler(void) {
-	/* USER CODE BEGIN Error_Handler_Debug */
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	while (1) {
 	}
-	/* USER CODE END Error_Handler_Debug */
+  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT

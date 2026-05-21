@@ -14,5 +14,7 @@ typedef union {
 	uint8_t I2C_REGISTERS[12];
 } DataCo;
 
+
+
 extern DataCo I2C_GPS;
 #endif /* INC_GAUL_DRIVERS_GEO_COORDO_H_ */
