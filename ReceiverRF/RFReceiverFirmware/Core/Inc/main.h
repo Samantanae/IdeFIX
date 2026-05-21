@@ -105,8 +105,8 @@ void Error_Handler(void);
 #endif //RECEIVE
 
 
-#define I2C_ADRESS_SLAVE1 20
-#define I2C_ADRESS_MASTER 30
+#define I2C_ADRESS_SLAVE1 20      /**< The I2C address of slave 1 */
+#define I2C_ADRESS_MASTER 30      /**< The I2C address of the master */
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

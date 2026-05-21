@@ -37,9 +37,6 @@ void HAL_I2C_AddrCallback(I2C_HandleTypeDef* hi2c, uint8_t TransferDirection, ui
 	}
 	else{ // master request data (not superted for now)
 		Error_Handler();
-		/*téoriquement, il fonctionnerais, mais certain erreur ne sont pas encore géré.*/
-		//txcount = 0;
-		//HAL_I2C_Slave_Seq_Transmit_IT(hi2c, dataToSend + txcount, 1, I2C_FIRST_FRAME);
 	}
 }
 
@@ -81,9 +78,10 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c){
 
 void process_data(void){
 	// change the data in the registre(s).
-	uint8_t startREG = RxData[0];				/**< The starting register address */
-	uint8_t numREG = rxcount-1;					/**< The number of register to write.*/
-	uint8_t endREG = startREG + numREG -1;		/**< The ending register address */
+	//TODO: verif if int8_t is enough for the number of registre we want to write.
+	int8_t startREG = RxData[0];				/**< The starting register address */
+	int8_t numREG = rxcount-1;					/**< The number of register to write.*/
+	int8_t endREG = startREG + numREG -1;		/**< The ending register address */
 
 	/** S'il y a dépassement du nombre de registres disponibles */
 	if (endREG>I2C_NREGISTRE)
@@ -97,5 +95,4 @@ void process_data(void){
 		I2C_GPS.I2C_REGISTERS[startREG++] = RxData[indx++];
 	}
 }
-
 
