@@ -7,7 +7,7 @@
 
 #ifndef INC_GAUL_DRIVERS_I2C_SLAVE_H_
 #define INC_GAUL_DRIVERS_I2C_SLAVE_H_
-#include "stm32f1xx_hal_i2c.h"
+#include "main.h"
 #include <stdint.h>
 extern uint8_t RxData[6];
 

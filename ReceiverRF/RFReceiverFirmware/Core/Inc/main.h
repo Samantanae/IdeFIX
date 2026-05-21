@@ -49,8 +49,6 @@ extern "C" {
 
 /* USER CODE END EM */
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -106,6 +104,9 @@ void Error_Handler(void);
 #define TRANSMIT // TRANSMIT
 #endif //RECEIVE
 
+
+#define I2C_ADRESS_SLAVE1 20
+#define I2C_ADRESS_MASTER 30
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

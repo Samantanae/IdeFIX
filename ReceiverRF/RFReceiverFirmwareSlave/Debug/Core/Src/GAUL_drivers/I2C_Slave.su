@@ -1,0 +1,4 @@
+../Core/Src/GAUL_drivers/I2C_Slave.c:14:6:HAL_I2C_ListenCpltCallback	16	static
+../Core/Src/GAUL_drivers/I2C_Slave.c:19:6:HAL_I2C_AddrCallback	16	static
+../Core/Src/GAUL_drivers/I2C_Slave.c:29:6:HAL_I2C_SlaveRxCpltCallback	16	static
+../Core/Src/GAUL_drivers/I2C_Slave.c:34:6:HAL_I2C_ErrorCallback	16	static
