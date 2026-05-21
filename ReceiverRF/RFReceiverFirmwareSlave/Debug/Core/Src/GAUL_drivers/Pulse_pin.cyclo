@@ -1,0 +1,4 @@
+../Core/Src/GAUL_drivers/Pulse_pin.c:13:19:PulsePin_init	1
+../Core/Src/GAUL_drivers/Pulse_pin.c:31:6:PulsePin	4
+../Core/Src/GAUL_drivers/Pulse_pin.c:40:6:_Stop_Pulse	1
+../Core/Src/GAUL_drivers/Pulse_pin.c:49:19:_find_pulse_pin	3

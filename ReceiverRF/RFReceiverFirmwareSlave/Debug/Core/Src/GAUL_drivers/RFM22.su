@@ -1,0 +1,14 @@
+../Core/Src/GAUL_drivers/RFM22.c:23:9:RFM22_init	32	static
+../Core/Src/GAUL_drivers/RFM22.c:78:9:RFM22_transmit	32	static
+../Core/Src/GAUL_drivers/RFM22.c:113:9:RFM22_rx_mode	24	static
+../Core/Src/GAUL_drivers/RFM22.c:132:9:RFM22_standby	24	static
+../Core/Src/GAUL_drivers/RFM22.c:153:9:RFM22_available	24	static
+../Core/Src/GAUL_drivers/RFM22.c:173:9:RFM22_get_RSSI	24	static
+../Core/Src/GAUL_drivers/RFM22.c:186:6:RFM22_clr_tx_FIFO	24	static
+../Core/Src/GAUL_drivers/RFM22.c:198:6:RFM22_clr_rx_FIFO	24	static
+../Core/Src/GAUL_drivers/RFM22.c:212:6:RFM22_read_rx	24	static
+../Core/Src/GAUL_drivers/RFM22.c:223:6:RFM22_channel	16	static
+../Core/Src/GAUL_drivers/RFM22.c:243:6:RFM22_SPI_write	32	static
+../Core/Src/GAUL_drivers/RFM22.c:263:6:RFM22_SPI_read	32	static
+../Core/Src/GAUL_drivers/RFM22.c:271:7:RFM22_get_frequency	56	static
+../Core/Src/GAUL_drivers/RFM22.c:291:6:RFM22_set_frequency	64	static
