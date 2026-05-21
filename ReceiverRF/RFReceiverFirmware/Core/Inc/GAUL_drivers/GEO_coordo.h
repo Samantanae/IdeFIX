@@ -9,10 +9,10 @@
 #define INC_GAUL_DRIVERS_GEO_COORDO_H_
 #include <stdint.h>
 
-union {
+typedef union {
 	float coordo[3];
 	uint8_t I2C_REGISTERS[12];
-} data_coordo;
+} DataCo;
 
-extern data_coordo GPS_coordo;
+extern DataCo I2C_GPS;
 #endif /* INC_GAUL_DRIVERS_GEO_COORDO_H_ */

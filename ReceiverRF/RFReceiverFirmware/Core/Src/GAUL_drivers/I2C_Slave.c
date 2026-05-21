@@ -5,17 +5,20 @@
  *      Author: Samuel
  */
 #include "GAUL_drivers/I2C_Slave.h"
+#include "GAUL_drivers/GEO_coordo.h"
 #include "stdio.h"
 #include <string.h>
 #include "main.h"
 
 #define RxSIZE 16
-#define I2C_NREGISTRE 10
-uint16_t rxcount = 0;	/** le numéro du bytes où la trensmision est rendu. permet de trensmettre un nombre indéterminer de donné (temps que cela ne dépasse pas la taille du bufer)*/
+#define I2C_NREGISTRE 12
 uint8_t RxData[RxSIZE] = {0};
-uint8_t I2C_REGISTERS[I2C_NREGISTRE] = {0,0,0,0,0,0,0,0,0,0};
-//------------------------------------------------------------
-// interupt trigger when the master tries to comm. with the slave
+
+uint8_t rxcount = 0;	/** le numéro du bytes où la trensmision est rendu. permet de trensmettre un nombre indéterminer de donné (temps que cela ne dépasse pas la taille du bufer)*/
+uint8_t txcount = 0;
+
+/**
+ * @bref interupt trigger when the master tries to comm. with the slave*/
 void HAL_I2C_ListenCpltCallback(I2C_HandleTypeDef *hi2c){
 	HAL_I2C_EnableListen_IT(hi2c);
 }
@@ -23,11 +26,14 @@ void HAL_I2C_ListenCpltCallback(I2C_HandleTypeDef *hi2c){
 // interupt trigger when the device adr. send by master == adr. of the slave.
 void HAL_I2C_AddrCallback(I2C_HandleTypeDef* hi2c, uint8_t TransferDirection, uint16_t AddrMatchCode){
 	if(TransferDirection == I2C_DIRECTION_TRANSMIT){    // if master which to transmit data.
-			rxcount = 0;
-			HAL_I2C_Slave_Seq_Receive_IT(hi2c, RxData+rxcount, 1, I2C_FIRST_FRAME);
+		rxcount = 0;
+		HAL_I2C_Slave_Seq_Receive_IT(hi2c, RxData + rxcount, 1, I2C_FIRST_FRAME);
 	}
 	else{ // master request data (not superted for now)
 		Error_Handler();
+		/*téoriquement, il fonctionnerais, mais certain erreur ne sont pas encore géré.*/
+		//txcount = 0;
+		//HAL_I2C_Slave_Seq_Transmit_IT(hi2c, dataToSend + txcount, 1, I2C_FIRST_FRAME);
 	}
 }
 
@@ -35,40 +41,38 @@ void HAL_I2C_AddrCallback(I2C_HandleTypeDef* hi2c, uint8_t TransferDirection, ui
 void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
 	rxcount++;
-	if (rxcount < RxSIZE)
-	{
-		if (rxcount == RxSIZE-1)
-		{
+	if (rxcount < RxSIZE){
+		if (rxcount == RxSIZE-1){
 			HAL_I2C_Slave_Seq_Receive_IT(hi2c, RxData+rxcount, 1, I2C_LAST_FRAME);
 		}
-		else
-		{
+		else{
 			HAL_I2C_Slave_Seq_Receive_IT(hi2c, RxData+rxcount, 1, I2C_NEXT_FRAME);
 		}
 	}
-
-	if (rxcount == RxSIZE)
-	{
+	if (rxcount == RxSIZE){
 		process_data();
 	}
-
 }
 
 // interupt triger after an error during reception
-void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c){
-	// if the master stop sending before the number of bytes is receved. c'est géré ici.
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
+{
 	uint32_t errorcode = HAL_I2C_GetError(hi2c);
-	if(errorcode == 4)    // AF error
+	if (errorcode == 4)  // AF error
 	{
 		process_data();
 	}
-	HAL_I2C_EnableListen_IT(hi2c); // for now, juste reactivate the reception.
+	HAL_I2C_EnableListen_IT(hi2c);
 }
 
+/*void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef* hi2c){
+	txcount++;
+	HAL_I2C_Slave_Seq_Transmit_IT(hi2c, dataToSend+txcount, 1, I2C_LAST_FRAME);
+
+}*/
 
 /**do somting with the data*/
-void process_data (void)
-{
+void process_data(void){
 	/*
 	 * First bit is the adress
 	 * */
@@ -77,13 +81,14 @@ void process_data (void)
 	int8_t endREG = startREG + numREG -1;
 	if (endREG>I2C_NREGISTRE)
 	{
-		Error_Handler();
+		Error_Handler();    /*pas encore implémenté*/
 	}
 
 	int8_t indx = 1;
 	for (int i=0; i<numREG; i++)
 	{
-		I2C_REGISTERS[startREG++] = RxData[indx++];
+		I2C_GPS.I2C_REGISTERS[startREG++] = RxData[indx++];
 	}
 }
+
 
