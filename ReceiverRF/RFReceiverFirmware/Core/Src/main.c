@@ -77,13 +77,7 @@ uint8_t rfm22_interrupt_flag = 0;
 uint8_t pushbutton_interrupt_flag = 0;
 uint8_t pushbutton_pushed[4] = { 0 };
 
-uint8_t statue_data_i2c = 0;	/**statue des donnée i2c. 0=chargement. A METTRE À 1 POUR DIRE READY.*/
-/** statue du trensfert.
- * 0=aucun trensfer.
- * 1=en cours.
- * 2=ARRÊT. */
-uint8_t statue_i2c = 2;
-float tempon_i2c[3];
+
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == RFM_IRQ_Pin)
