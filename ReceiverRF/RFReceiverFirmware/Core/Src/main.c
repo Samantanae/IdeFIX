@@ -34,10 +34,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
 #ifdef RECEIVE
-#include "GAUL_drivers/I2C_Slave.h"
-#else
 #include "GAUL_drivers/i2c_master.h"
+#else
+#include "GAUL_drivers/I2C_Slave.h"
 #endif
 /* USER CODE END Includes */
 
@@ -59,9 +60,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-#ifdef TRANSMIT
-	uint8_t TxData[13]= {0x1, 0x2, 0x3, 0x4, 0x5, 0x6,0x7,0x8};
-#endif
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -179,8 +178,13 @@ int main(void)
   MX_TIM5_Init();
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
-// ------------ GESTION I2C (INITIALISATION MASTER-SLAVE)--------------
 
+#ifdef RECEIVE    // master
+i2c_data_dispo();	// TODO: put this where the first data is really dispo. it's won't send before that.
+#else			  // slave
+hi2c1.Init.OwnAddress1 = I2C_ADRESS_SLAVE1;    // changement de l'adr du slave.
+	HAL_I2C_EnableListen_IT(&hi2c1);
+#endif
 
 	// init pulsed pins and their respective timers
 	Pulse_Pin_Typedef pin1 = PulsePin_init(LED1_GPIO_Port, LED1_Pin, &htim2,
@@ -211,12 +215,8 @@ int main(void)
 	RFM22_init(&rfm22, &rfm22_confs);
 	uint8_t channel = 0;
 
-#ifdef RECEIVE
-	HAL_I2C_EnableListen_IT(&hi2c1);
-#endif
-#ifdef TRANSMIT
-  uint8_t TxData[6] = {0x1, 0x2, 0x3, 0x4, 0x5, 0x6};
-#endif
+	// ------------ GESTION I2C (INITIALISATION MASTER-SLAVE)--------------
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -236,22 +236,12 @@ int main(void)
 	uint8_t spi_rx[1] = { 0 };
 
 	/*uniquement après que tout soit initialisé que le trensfer peux commencer*/
-	statue_i2c = 0;
 
 	while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		//------------------- GESTION I2C --------------------------
 #ifdef TRANSMIT
-	  // exemple de transmit (requesting to write 2 bytes stored in the TxData buffer to the slave.
-	  // the data while be stored ate the 7 register adr. 1 is the size of register address and 2 is the number of bytes to send.
-	  // TODO: make it non bloquant.
-	  if(statue_i2c==0 && statue_data_i2c==1){
-		  HAL_I2C_Master_Transmit_DMA(&hi2c1,I2C_ADRESS_SLAVE1 , &I2C_GPS.I2C_REGISTER, 12);
-	  }
-		HAL_I2C_Mem_Write(&hi2c1, I2C_ADRESS_SLAVE1, 7, 1, TxData, 2, 1000);  // write 2 bytes starting from register 7
-	  //----------------- FIN GESTION I2C -------------------------
 	  RFM22_transmit(&rfm22, packet, 8);
 
 	  uint32_t tick = HAL_GetTick();
@@ -263,6 +253,13 @@ int main(void)
 		if (!(spi_rx[0] & RH_RF22_RXON)) {
 			RFM22_rx_mode(&rfm22);
 		}
+#endif
+
+// ------- handle I2C---------
+#ifdef RECEIVE    // master
+		I2C_main_loop(latitude,longitude, 0);
+#else			  // slave
+
 #endif
 
 		//handle rfm22 interrupts
@@ -363,6 +360,7 @@ int main(void)
 		}
 #endif
 	}
+
   /* USER CODE END 3 */
 }
 

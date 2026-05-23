@@ -9,7 +9,7 @@
 
 #include "GAUL_drivers/i2c_master.h"
 #include "GAUL_drivers/GEO_coordo.h"
-
+#include "i2c.h"
 
 
 //----------------------------------------------------
@@ -24,7 +24,7 @@ uint8_t statue_i2c = 2;
 
 uint8_t statue_DMA_i2c = 0;
 
-float tempon_i2c[3];
+float tempon_i2c[3] = {0, 0, 0};
 
 
 void start_i2c_loop(void){
@@ -63,7 +63,7 @@ void i2c_data_sender_DMA(const float val1, const float val2, const float val3){
 /**trensfert les donnée pour le GPS du tempon vers le buffer pour l'envoie*/
 void IC2_trensfert_tempon2bufer(void){
 	for (uint8_t i = 0; i < 3; i++){
-		I2C_GPS.coordo[i] = tempon_i2c[i]
+		I2C_GPS.coordo[i] = tempon_i2c[i];
 	}
 }
 
@@ -87,12 +87,12 @@ void I2C_main_loop(const float val1, const float val2, const float val3){
 void IC2_trensfert(void){
 	IC2_trensfert_tempon2bufer();
 	statue_i2c=1;
-	HAL_I2C_Master_Transmit_DMA(&hi2c1,I2C_ADRESS_SLAVE1,&I2C_GPS.I2C_REGISTERS, Size);
+	HAL_I2C_Master_Transmit_DMA(&hi2c1,I2C_ADRESS_SLAVE1,&I2C_GPS.I2C_REGISTERS, 12);   //TODO: verif if the size is ok.
 
 
 }
 
-void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c) {
+void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c) {    // call when the I2C is finish.
 	if (hi2c->Instance == I2C1) {
 		// vérification de s'il peut envoyer.
 		if(statue_data_i2c==1 && statue_i2c!=2){

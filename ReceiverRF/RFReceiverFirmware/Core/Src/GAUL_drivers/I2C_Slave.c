@@ -77,7 +77,7 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c){
 }
 
 void process_data(void){
-	// change the data in the registre(s).
+	/** change the data in the registre(s).*/
 	//TODO: verif if int8_t is enough for the number of registre we want to write.
 	int8_t startREG = RxData[0];				/**< The starting register address */
 	int8_t numREG = rxcount-1;					/**< The number of register to write.*/
